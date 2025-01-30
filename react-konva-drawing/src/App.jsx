@@ -4,27 +4,27 @@ import { Stage, Layer, Line, Transformer, Text, Rect } from 'react-konva';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const App = () => {
-  const [tool, setTool] = useState('pen'); // "pen", "select", or "calculate"
-  const [drawMode, setDrawMode] = useState('free'); // "free" or "straight" or text mode
+  const [tool, setTool] = useState('pen');
+  const [drawMode, setDrawMode] = useState('free');
   const [lines, setLines] = useState([]);
-  const [textBoxes, setTextBoxes] = useState([]); // Store text boxes
+  const [textBoxes, setTextBoxes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  const [selectedTextBoxes, setSelectedTextBoxes] = useState([]); // Store selected text boxes in calculate mode
-  const [editingText, setEditingText] = useState(null); // Track editing text box
-  const [sum, setSum] = useState(0); // Store sum result
-  const [gridSize, setGridSize] = useState(50); // State for grid size
-  const [showGrid, setShowGrid] = useState(false); // State for showing/hiding the grid
-  const [penSize, setPenSize] = useState(5); // Store pen size
-  const [lineType, setLineType] = useState('solid'); // Store line type (solid, dashed, dotted)
-  const [lineColor, setLineColor] = useState('#df4b26'); // Store line color
+  const [selectedTextBoxes, setSelectedTextBoxes] = useState([]);
+  const [editingText, setEditingText] = useState(null);
+  const [sum, setSum] = useState(0);
+  const [gridSize, setGridSize] = useState(50);
+  const [showGrid, setShowGrid] = useState(false);
+  const [penSize, setPenSize] = useState(5);
+  const [lineType, setLineType] = useState('solid');
+  const [lineColor, setLineColor] = useState('#df4b26');
   const isDrawing = useRef(false);
   const transformerRef = useRef(null);
+  const stageRef = useRef(null);
 
   useEffect(() => {
     if (transformerRef.current) {
       const selectedNode = lines.find((line) => line.id === selectedId);
       const selectedText = textBoxes.find((textBox) => textBox.id === selectedId);
-      
       if (selectedNode) {
         transformerRef.current.nodes([selectedNode.ref.current]);
       } else if (selectedText) {
@@ -36,18 +36,57 @@ const App = () => {
     }
   }, [selectedId, lines, textBoxes]);
 
+  const handleTouchStart = (e) => {
+    if (e.target === e.target.getStage()) {
+      setSelectedId(null);
+    }
+
+    const pos = e.target.getStage().getPointerPosition();
+    if (tool === 'pen') {
+      isDrawing.current = true;
+      setLines([...lines, { id: `line${lines.length + 1}`, tool, points: [pos.x, pos.y], ref: React.createRef(), lineType, penSize, lineColor }]);
+    } else if (tool === 'text') {
+      setTextBoxes([
+        ...textBoxes,
+        {
+          id: textBoxes.length,
+          x: pos.x,
+          y: pos.y,
+          text: '',
+          ref: React.createRef(),
+        },
+      ]);
+      setEditingText(textBoxes.length);
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDrawing.current) return;
+    const stage = e.target.getStage();
+    const point = stage.getPointerPosition();
+    let lastLine = lines[lines.length - 1];
+    if (drawMode === 'straight' && lastLine.points.length > 2) {
+      lastLine.points = [lastLine.points[0], lastLine.points[1], point.x, point.y];
+    } else {
+      lastLine.points = lastLine.points.concat([point.x, point.y]);
+    }
+    setLines(lines.concat());
+  };
+
+  const handleTouchEnd = () => {
+    isDrawing.current = false;
+  };
+
   const handleMouseDown = (e) => {
     if (e.target === e.target.getStage()) {
       setSelectedId(null); // Deselect when clicking on empty space
     }
 
     if (tool === 'pen') {
-      // Drawing mode logic
       isDrawing.current = true;
       const pos = e.target.getStage().getPointerPosition();
       setLines([...lines, { id: `line${lines.length + 1}`, tool, points: [pos.x, pos.y], ref: React.createRef(), lineType, penSize, lineColor }]);
     } else if (tool === 'text') {
-      // Text creation logic
       const pos = e.target.getStage().getPointerPosition();
       setTextBoxes([ 
         ...textBoxes,
@@ -65,11 +104,9 @@ const App = () => {
 
   const handleMouseMove = (e) => {
     if (!isDrawing.current) return;
-
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
     let lastLine = lines[lines.length - 1];
-
     if (drawMode === 'straight' && lastLine.points.length > 2) {
       lastLine.points = [lastLine.points[0], lastLine.points[1], point.x, point.y];
     } else {
@@ -83,21 +120,19 @@ const App = () => {
   };
 
   const handleSelect = (id, type) => {
-    if (tool === 'pen' || tool === 'text') return; // Prevent selection in pen or text mode
+    if (tool === 'pen' || tool === 'text') return;
 
     if (tool === 'calculate') {
-      // In calculate mode, toggle selection of text boxes
       if (selectedTextBoxes.includes(id)) {
-        setSelectedTextBoxes(selectedTextBoxes.filter((selectedId) => selectedId !== id)); // Deselect
+        setSelectedTextBoxes(selectedTextBoxes.filter((selectedId) => selectedId !== id));
       } else {
-        setSelectedTextBoxes([...selectedTextBoxes, id]); // Select
+        setSelectedTextBoxes([...selectedTextBoxes, id]);
       }
     } else {
-      // Regular selection mode for lines and other tools
       if (selectedId === id) {
-        setSelectedId(null); // Deselect if clicking the same line/text
+        setSelectedId(null);
       } else {
-        setSelectedId(id); // Select the line/text
+        setSelectedId(id);
       }
     }
   };
@@ -105,7 +140,7 @@ const App = () => {
   const handleDoubleClick = (id) => {
     const selectedTextBox = textBoxes.find((textBox) => textBox.id === id);
     if (selectedTextBox) {
-      setEditingText(id); // Start editing the text box
+      setEditingText(id);
     }
   };
 
@@ -118,7 +153,7 @@ const App = () => {
   };
 
   const handleTextBlur = () => {
-    setEditingText(null); // Stop editing on blur
+    setEditingText(null);
   };
 
   const handleCalculateSum = () => {
@@ -130,19 +165,17 @@ const App = () => {
       }
       return sum;
     }, 0);
-    setSum(sumResult); // Set the sum result
+    setSum(sumResult);
   };
 
   const handleDelete = () => {
     if (selectedId !== null) {
-      // Delete the selected line or text box based on its ID
       setLines(lines.filter((line) => line.id !== selectedId));
       setTextBoxes(textBoxes.filter((textBox) => textBox.id !== selectedId));
       setSelectedId(null);
     }
   };
 
-  // Function to draw the grid
   const drawGrid = () => {
     const gridLines = [];
     for (let i = 0; i < window.innerWidth; i += gridSize) {
@@ -156,24 +189,26 @@ const App = () => {
 
   return (
     <div>
-      {/* Tool Selection Tab Bar */}
       <div className="btn-group" role="group" style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 3 }}>
-        <button 
-          type="button" 
-          className={`btn btn-${tool === 'pen' ? 'primary' : 'secondary'}`} 
-          onClick={() => { setTool('pen'); setSelectedId(null); setSelectedTextBoxes([]); }}>
+        <button
+          type="button"
+          className={`btn btn-${tool === 'pen' ? 'primary' : 'secondary'}`}
+          onClick={() => { setTool('pen'); setSelectedId(null); setSelectedTextBoxes([]); }}
+        >
           Pen
         </button>
-        <button 
-          type="button" 
-          className={`btn btn-${tool === 'select' ? 'primary' : 'secondary'}`} 
-          onClick={() => { setTool('select'); setSelectedId(null); setSelectedTextBoxes([]); }}>
+        <button
+          type="button"
+          className={`btn btn-${tool === 'select' ? 'primary' : 'secondary'}`}
+          onClick={() => { setTool('select'); setSelectedId(null); setSelectedTextBoxes([]); }}
+        >
           Select
         </button>
-        <button 
-          type="button" 
-          className={`btn btn-${tool === 'calculate' ? 'primary' : 'secondary'}`} 
-          onClick={() => { setTool('calculate'); setSelectedId(null); setSelectedTextBoxes([]); }}>
+        <button
+          type="button"
+          className={`btn btn-${tool === 'calculate' ? 'primary' : 'secondary'}`}
+          onClick={() => { setTool('calculate'); setSelectedId(null); setSelectedTextBoxes([]); }}
+        >
           Calculate
         </button>
       </div>
@@ -266,57 +301,66 @@ const App = () => {
         </button>
       </div>
 
-      <Stage width={window.innerWidth} height={window.innerHeight} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+      <Stage
+        width={window.innerWidth}
+        height={window.innerHeight}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        ref={stageRef}
+      >
         <Layer>
-          {/* Grid Lines */}
           {showGrid && drawGrid()}
-
           {lines.map((line, i) => (
             <Line
-              key={i}
-              ref={line.ref}
-              points={line.points}
-              stroke={selectedId === line.id ? 'blue' : line.lineColor}
-              strokeWidth={line.penSize}
-              tension={0.5}
-              lineCap="round"
-              lineJoin="round"
-              dash={line.lineType === 'dashed' ? [10, 5] : line.lineType === 'dotted' ? [1, 5] : []}
-              draggable={tool === 'select'} // Only make it draggable in select mode
-              onClick={() => handleSelect(line.id, 'line')} // Send type as 'line'
-            />
+            key={i}
+            ref={line.ref}
+            points={line.points}
+            stroke={selectedId === line.id ? 'blue' : line.lineColor}
+            strokeWidth={line.penSize}
+            tension={0.5}
+            lineCap="round"
+            lineJoin="round"
+            dash={line.lineType === 'dashed' ? [10, 5] : line.lineType === 'dotted' ? [1, 5] : []}
+            draggable={tool === 'select'}
+            onClick={() => handleSelect(line.id, 'line')}
+            hitStroke={true} // Make sure to add this property
+          />
           ))}
           {textBoxes.map((textBox, i) => (
             <React.Fragment key={i}>
               {selectedTextBoxes.includes(textBox.id) && tool === 'calculate' && (
-                <Rect
-                  x={textBox.x - 5}
-                  y={textBox.y - 5}
-                  width={textBox.ref.current.getTextWidth() + 10} // Use getTextWidth to get text width
-                  height={textBox.ref.current.getTextHeight() + 10} // Use getTextHeight to get text height
-                  fill="yellow"
-                  opacity={0.3}
-                  zIndex={2}
-                />
+               <Rect
+               x={textBox.x - 5}
+               y={textBox.y - 5}
+               width={textBox.ref.current.getTextWidth() + 10}
+               height={textBox.ref.current.getTextHeight() + 10}
+               fill="yellow"
+               opacity={0.3}
+               zIndex={selectedId === textBox.id ? 3 : 1} // Bring selected text box to the front
+             />
               )}
-              <Text
-                ref={textBox.ref}
-                x={textBox.x}
-                y={textBox.y}
-                text={textBox.text}
-                fontSize={20}
-                draggable={tool === 'select'} // Only make it draggable in select mode
-                onClick={() => handleSelect(textBox.id, 'text')} // Send type as 'text'
-                onDoubleClick={() => handleDoubleClick(textBox.id)} // Enable double-click editing
-                fill={selectedTextBoxes.includes(textBox.id) && tool === 'calculate' ? 'blue' : 'black'} // Change text color on select
-              />
+             <Text
+            ref={textBox.ref}
+            x={textBox.x}
+            y={textBox.y}
+            text={textBox.text}
+            fontSize={20}
+            draggable={tool === 'select'}
+            onClick={() => handleSelect(textBox.id, 'text')}
+            onDoubleClick={() => handleDoubleClick(textBox.id)}
+            fill={selectedTextBoxes.includes(textBox.id) && tool === 'calculate' ? 'blue' : 'black'}
+            hitStroke={true} // Make sure to add this property
+          />
             </React.Fragment>
           ))}
           <Transformer ref={transformerRef} />
         </Layer>
       </Stage>
 
-      {/* Text Editing Area */}
       {editingText !== null && (
         <input
           type="text"
@@ -328,7 +372,6 @@ const App = () => {
         />
       )}
 
-      {/* Display Sum Result at the Top-Right */}
       {tool === 'calculate' && (
         <div className="position-absolute" style={{ top: '10px', right: '10px', fontSize: '20px', zIndex: 3 }}>
           Sum: {sum}
