@@ -20,7 +20,7 @@ const App = () => {
   const isDrawing = useRef(false);
   const transformerRef = useRef(null);
   const stageRef = useRef(null);
-
+  
   useEffect(() => {
     if (transformerRef.current) {
       const selectedNode = lines.find((line) => line.id === selectedId);
@@ -37,10 +37,10 @@ const App = () => {
   }, [selectedId, lines, textBoxes]);
 
   const handleTouchStart = (e) => {
+    e.evt.preventDefault(); // Prevent scrolling
     if (e.target === e.target.getStage()) {
       setSelectedId(null);
     }
-
     const pos = e.target.getStage().getPointerPosition();
     if (tool === 'pen') {
       isDrawing.current = true;
@@ -59,8 +59,10 @@ const App = () => {
       setEditingText(textBoxes.length);
     }
   };
+  
 
   const handleTouchMove = (e) => {
+    e.evt.preventDefault(); // Prevent scrolling
     if (!isDrawing.current) return;
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
@@ -72,8 +74,9 @@ const App = () => {
     }
     setLines(lines.concat());
   };
-
-  const handleTouchEnd = () => {
+  
+  const handleTouchEnd = (e) => {
+    e.evt.preventDefault(); // Prevent scrolling
     isDrawing.current = false;
   };
 
@@ -315,20 +318,21 @@ const App = () => {
         <Layer>
           {showGrid && drawGrid()}
           {lines.map((line, i) => (
-            <Line
-            key={i}
-            ref={line.ref}
-            points={line.points}
-            stroke={selectedId === line.id ? 'blue' : line.lineColor}
-            strokeWidth={line.penSize}
-            tension={0.5}
-            lineCap="round"
-            lineJoin="round"
-            dash={line.lineType === 'dashed' ? [10, 5] : line.lineType === 'dotted' ? [1, 5] : []}
-            draggable={tool === 'select'}
-            onClick={() => handleSelect(line.id, 'line')}
-            hitStroke={true} // Make sure to add this property
-          />
+           <Line
+           key={i}
+           ref={line.ref}
+           points={line.points}
+           stroke={selectedId === line.id ? 'blue' : line.lineColor}
+           strokeWidth={line.penSize}
+           tension={0.5}
+           lineCap="round"
+           lineJoin="round"
+           dash={line.lineType === 'dashed' ? [10, 5] : line.lineType === 'dotted' ? [1, 5] : []}
+           draggable={tool === 'select'}
+           onClick={() => handleSelect(line.id, 'line')}
+           onTouchStart={() => handleSelect(line.id, 'line')}
+           hitStrokeWidth={20}
+         />
           ))}
           {textBoxes.map((textBox, i) => (
             <React.Fragment key={i}>
@@ -343,18 +347,19 @@ const App = () => {
                zIndex={selectedId === textBox.id ? 3 : 1} // Bring selected text box to the front
              />
               )}
-             <Text
-            ref={textBox.ref}
-            x={textBox.x}
-            y={textBox.y}
-            text={textBox.text}
-            fontSize={20}
-            draggable={tool === 'select'}
-            onClick={() => handleSelect(textBox.id, 'text')}
-            onDoubleClick={() => handleDoubleClick(textBox.id)}
-            fill={selectedTextBoxes.includes(textBox.id) && tool === 'calculate' ? 'blue' : 'black'}
-            hitStroke={true} // Make sure to add this property
-          />
+                        <Text
+              ref={textBox.ref}
+              x={textBox.x}
+              y={textBox.y}
+              text={textBox.text}
+              fontSize={20}
+              draggable={tool === 'select'}
+              onClick={() => handleSelect(textBox.id, 'text')}
+              onTouchStart={() => handleSelect(textBox.id, 'text')}
+              onDoubleClick={() => handleDoubleClick(textBox.id)}
+              fill={selectedTextBoxes.includes(textBox.id) && tool === 'calculate' ? 'blue' : 'black'}
+              hitStrokeWidth={20}
+            />
             </React.Fragment>
           ))}
           <Transformer ref={transformerRef} />

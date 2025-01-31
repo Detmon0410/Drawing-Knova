@@ -4,6 +4,10 @@
   padding: 2rem;
   text-align: center;
 }
+body {
+  touch-action: none; /* Disables panning and zooming */
+  overflow: hidden; /* Prevents scrolling */
+}
 
 .logo {
   height: 6em;
