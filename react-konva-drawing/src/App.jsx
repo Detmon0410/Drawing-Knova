@@ -21,6 +21,7 @@ const App = () => {
   const transformerRef = useRef(null);
   const stageRef = useRef(null);
   
+  
   useEffect(() => {
     if (transformerRef.current) {
       const selectedNode = lines.find((line) => line.id === selectedId);
@@ -37,21 +38,30 @@ const App = () => {
   }, [selectedId, lines, textBoxes]);
 
   const handleTouchStart = (e) => {
-    e.evt.preventDefault(); // Prevent scrolling
-    if (e.target === e.target.getStage()) {
-      setSelectedId(null);
-    }
+    e.evt.preventDefault();
     const pos = e.target.getStage().getPointerPosition();
+    
+    // Offset the starting positions for new items
+    const offset = 10; // Adjust this value based on your needs
+    
     if (tool === 'pen') {
       isDrawing.current = true;
-      setLines([...lines, { id: `line${lines.length + 1}`, tool, points: [pos.x, pos.y], ref: React.createRef(), lineType, penSize, lineColor }]);
+      setLines([...lines, { 
+        id: `line${lines.length + 1}`, 
+        tool, 
+        points: [pos.x, pos.y], 
+        ref: React.createRef(),
+        lineType, 
+        penSize, 
+        lineColor 
+      }]);
     } else if (tool === 'text') {
       setTextBoxes([
         ...textBoxes,
         {
           id: textBoxes.length,
-          x: pos.x,
-          y: pos.y,
+          x: pos.x + offset,  // Apply offset to the x position
+          y: pos.y + offset,  // Apply offset to the y position
           text: '',
           ref: React.createRef(),
         },
@@ -342,7 +352,7 @@ const App = () => {
                y={textBox.y - 5}
                width={textBox.ref.current.getTextWidth() + 10}
                height={textBox.ref.current.getTextHeight() + 10}
-               fill="yellow"
+               
                opacity={0.3}
                zIndex={selectedId === textBox.id ? 3 : 1} // Bring selected text box to the front
              />
